@@ -28,17 +28,17 @@ module.exports = msgHndlr = async (client, message) => {
         const groupMetadata = chat?.groupMetadata
         const groupAdmins = groupMetadata?.participants.filter(x => x.isAdmin).map(x => x.id._serialized)
 
-        const isOwner = sender == "6285745351659@c.us"
+        const isOwner = sender == "6285745351659@c.us" // change your whatsapp owner number
         const isBotAdmin = groupAdmins?.includes(client.info.me._serialized)
         const isAdmin = groupAdmins?.includes(sender)
+
+        await client.sendPresenceAvailable()
+        await client.sendSeen(from)
 
         // Functions
         function logMsg(cmd, pushname) {
             return console.log(color("[CMD]", "green"), color(moment(timestamp*1000).format("DD/MM/YY HH:mm:ss"), "yellow"), "FROM", color(pushname, "green"), "=>", color(prefix+cmd, "green"))
         }
-
-        await client.sendPresenceAvailable()
-        await client.sendSeen(from)
 
         switch (command) {
             // OWNER/UTILS
@@ -176,7 +176,7 @@ module.exports = msgHndlr = async (client, message) => {
                 .then(async igdata => {
                     let caption = "*_Instagram Downloader by @kaguyaShinomiya_*"
                     for (let i = 0; i < igdata.url_list.length; i++) {
-                        await message.reply(await MessageMedia.fromUrl(igdata.url_list[i], { unsafeMime: true, filename: "igdl@kaguyaShinomiya" }), from, { caption })
+                        await message.reply(await MessageMedia.fromUrl(igdata.url_list[i], { unsafeMime: true, filename: "igdl@kaguyaShinomiya" }), from, { caption, sendMediaAsDocument: true })
                     }
                 })
                 .catch(err => {
@@ -192,7 +192,7 @@ module.exports = msgHndlr = async (client, message) => {
                 tiktokdl(args[0])
                 .then(async ttdata => {
                     let caption = `*Author*: ${ttdata.nick}\n*Description*: ${ttdata.video_info.trim()}`
-                    await message.reply(await MessageMedia.fromUrl(ttdata.mp4, { unsafeMime: true, filename: ttdata.video_info.trim() }), from, { caption })
+                    await message.reply(await MessageMedia.fromUrl(ttdata.mp4, { unsafeMime: true, filename: ttdata.video_info.trim() }), from, { caption, sendMediaAsDocument: true })
                 })
                 .catch(err => {
                     console.log(err)

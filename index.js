@@ -20,12 +20,12 @@ const client = new Client({
             '--disable-accelerated-2d-canvas',
             '--disable-session-crashed-bubble',
             '--start-maximized',
-	        '--disable-features=LightMode',
+            '--disable-features=LightMode',
             '--force-dark-mode'
         ],
         ignoreHTTPSErrors: true,
         executablePath: 'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe'
-	    //'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe'
+        //'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe'
     }
 })
 client.initialize()
@@ -53,7 +53,6 @@ client.on("ready", () => {
 })
 
 client.on("message_create", (message) => {
-    if (!message._data.isNewMsg) return
     if (message.fromMe) return
     msgHndlr(client, message)
 })

@@ -9,20 +9,26 @@ const YouTube = require("./lib/YouTube")
 const { instagramdl, tiktokdl } = require("./lib/scraper")
 const { menu, groupofc, infobot, owner } = require("./lib/text")
 const qc = require("./lib/qc")
+const yts = require("yt-search")
+const Menfess = require("./lib/Menfess")
+const WP = require("wattpad.js")
+
+const wp = new WP()
 
 moment.tz.setDefault("Asia/Jakarta").locale("id")
 module.exports = msgHndlr = async (client, message) => {
     try {
         const { from, id, hasMedia, timestamp, type,hasQuotedMsg } = message
         const { mentionedJidList } = message._data
-        global.prefix = "#"
         let body = message.body || ""
         let quotedMsg = hasQuotedMsg ? await message.getQuotedMessage() : {}
+        global.prefix = /^[./!#%^&=\,;:()]/.test(body) ? body.match(/^[./!#%^&=\,;:()]/gi) : '#'
         
         const sender = id.participant || from
         const pushname = (await client.getContactById(sender)).pushname
         const chat = await message.getChat()
         const command = body.startsWith(prefix) ? body.slice(1).split(" ").shift().toLowerCase() : ""
+        const isCmd  = body.startsWith(prefix)
         const args = body.split(" ").slice(1)
         const q = args.join(" ")
         const groupMetadata = chat?.groupMetadata
@@ -34,10 +40,28 @@ module.exports = msgHndlr = async (client, message) => {
 
         await client.sendPresenceAvailable()
         await client.sendSeen(from)
+        Menfess.createDirpath()
+
+        // Menfess Chat
+        if (!isCmd && !chat.isGroup) {
+            let menUser = Menfess.getUser(sender) || await Menfess.checkCrush(sender) || {}
+            let forWho = menUser.crushJid == sender ? menUser.userJid : menUser.crushJid
+            if (menUser.startChat) {
+                await message.forward(forWho)
+            }
+        }
 
         // Functions
         function logMsg(cmd, pushname) {
             return console.log(color("[CMD]", "green"), color(moment(timestamp*1000).format("DD/MM/YY HH:mm:ss"), "yellow"), "FROM", color(pushname, "green"), "=>", color(prefix+cmd, "green"))
+        }
+
+        function getFilesize(bs64) {
+            return humanFileSize(Buffer.byteLength(Buffer.from(bs64, "base64")))
+        }
+
+        function monospace(text) {
+            return "```" + text + "```"
         }
 
         switch (command) {
@@ -153,12 +177,15 @@ module.exports = msgHndlr = async (client, message) => {
                 })
             }
             break
-            case "ytmp4": {
+            case "ytmp4":
+            case "yt": {
                 logMsg(command, pushname)
                 if (args.length === 0) return message.reply("Masukkan link youtube")
                 YouTube.mp4(q)
                 .then(async mp4data => {
-                    let caption = `*Judul*: ${mp4data.title}\n*Durasi*: ${secondsConvert(mp4data.duration)}\n*Kualitas:* ${mp4data.quality}\n\nSilahkan Tunggu Beberapa Menit...`
+                    let filesize = await getFilesize(await (await MessageMedia.fromUrl(mp4data.videoUrl, { unsafeMime: true })).data)
+                    if (Number(filesize.split(" MB")[0]) >= 40.00) return message.reply("Karena filesize/ukuran file besar, bot tidak bisa mengunduh video")
+                    let caption = `*Judul*: ${mp4data.title}\n*Durasi*: ${secondsConvert(mp4data.duration)}\n*Filesize:* ${filesize}\n\nSilahkan Tunggu Beberapa Menit...`
                     await message.reply((await MessageMedia.fromUrl(mp4data.thumb.url, { unsafeMime: true, filename: "thumbnail" })), from, { caption })
                     await message.reply(await MessageMedia.fromUrl(mp4data.videoUrl, { unsafeMime: true, filename: mp4data.title}), from, { sendMediaAsDocument: true })
                 })
@@ -176,7 +203,8 @@ module.exports = msgHndlr = async (client, message) => {
                 .then(async igdata => {
                     let caption = "*_Instagram Downloader by @kaguyaShinomiya_*"
                     for (let i = 0; i < igdata.url_list.length; i++) {
-                        await message.reply(await MessageMedia.fromUrl(igdata.url_list[i], { unsafeMime: true, filename: "igdl@kaguyaShinomiya" }), from, { caption, sendMediaAsDocument: true })
+                        let media = await MessageMedia.fromUrl(igdata.url_list[i], { unsafeMime: true, filename: "igdl@kaguyaShinomiya" })
+                        await message.reply(media, from, { caption, sendMediaAsDocument: (Number((await getFilesize(media.data).split(" MB")[0])) >= 16.00) })
                     }
                 })
                 .catch(err => {
@@ -192,12 +220,129 @@ module.exports = msgHndlr = async (client, message) => {
                 tiktokdl(args[0])
                 .then(async ttdata => {
                     let caption = `*Author*: ${ttdata.nick}\n*Description*: ${ttdata.video_info.trim()}`
-                    await message.reply(await MessageMedia.fromUrl(ttdata.mp4, { unsafeMime: true, filename: ttdata.video_info.trim() }), from, { caption, sendMediaAsDocument: true })
+                    let media = await MessageMedia.fromUrl(ttdata.mp4, { unsafeMime: true, filename: ttdata.video_info.trim() })
+                    await message.reply(media, from, { caption, sendMediaAsDocument: (Number((await getFilesize(media.data).split(" MB")[0])) >= 16.00) })
                 })
                 .catch(err => {
                     console.log(err)
                     message.reply("Error Ditemukan! Silahkan Hubungi Admin")
                 })
+            }
+            break
+            case "play": {
+                logMsg(command, pushname)
+                if (args.length === 0) return message.reply("Masukkan kata kunci lagu")
+                let vids = await yts(q)
+                YouTube.mp3(vids.videos[0].url)
+                .then(async mp3data => {
+                    let caption = `*Judul*: ${mp3data.meta.title}\n*Durasi*: ${secondsConvert(mp3data.meta.seconds)}\n*Filesize:* ${humanFileSize(mp3data.size)}\n\nSilahkan Tunggu Beberapa Menit...`
+                    await message.reply((await MessageMedia.fromUrl(mp3data.meta.image, { unsafeMime: true, filename: "thumbnail" })), from, { caption })
+                    await message.reply(await MessageMedia.fromFilePath(mp3data.path), from, { sendMediaAsDocument: true })
+                    fs.unlinkSync(mp3data.path)
+                })
+                .catch(err => {
+                    console.log(err)
+                    message.reply("Error Ditemukan! Silahkan Hubungi Admin")
+                })
+            }
+            break
+
+            // FUN
+            case "menfess": {
+                logMsg(command, pushname)
+                if (args.length === 0) return message.reply(`Menfess adalah fitur untuk mengirimkan pesan yang berisi pernyataan suka terhadap crush. Contoh penggunaan ada dibawah
+
+*${prefix}menfess* = Untuk mengirimkan pesan pernyataan suka kepada crush\nContoh : ${prefix}menfess target|nama_samaranmu|pesan\n${prefix}menfess 62xxxxxx|seseorang|hai aku suka kamu
+*${prefix}menfess start* = Untuk membuka obrolan. (Hanya bisa dilakukan oleh si crush)\nContoh : ${prefix}menfess start
+*${prefix}menfess stop* = Untuk menutup obrolan. (Hanya bisa dilakukan oleh si crush)\nContoh : ${prefix}menfess stop
+*${prefix}menfess reset* = Untuk mereset database menfess (Hanya bisa dilakukan oleh owner)\nContoh : ${prefix}menfess reset
+
+Setiap jam 00:00 WIB data menfess akan direset dan jika kalian ingin mengobrol dengan crush, maka harus mengirim pesan menfess lagi.
+Data anda akan sepenuhnya aman dan tidak akan mengalami kebocoran`)
+                if (chat.isGroup) return message.reply("Khusus pesan pribadi (PC only !)")
+                let [menArg, hisName, text] = q.split("|")
+                const isOnWa = (menArg !== "start" && menArg !== "stop" && menArg !== "reset") ? await client.isRegisteredUser(menArg) : false
+                if (!isOnWa && (menArg !== "start" && menArg !== "stop" && menArg !== "reset") ) return message.reply("Targetmu tidak terdaftar di WhatsApp")
+                const contactJid = (menArg !== "start" && menArg !== "stop" && menArg !== "reset") ? await client.getNumberId(menArg) : false
+                const timeMsg = moment(timestamp*1000).format("DD/MM/YY HH:mm:ss")
+                const menCrush = await Menfess.checkCrush(sender)
+                const menUser = Menfess.getUser(menCrush.userJid)
+                const textMen = `_Hai, kamu dapat pesan confess nih_
+
+Waktu Dikirim : ${monospace(timeMsg)}
+Pengirim (nama samaran) : ${monospace(hisName)}
+Pesan :
+${monospace(text)}
+
+*${prefix}menfess start* = Untuk membuka obrolan
+*${prefix}menfess stop* = Untuk menutup obrolan`
+                if (menArg && isOnWa) {
+                    if (menArg == sender.split("@")[0]) return message.reply("Jangan jadikan diri sendiri sebagai target crush!")
+                    if (menUser.crushJid) return message.reply("Anda sudah punya crush, ngotak dong!")
+                    if (menArg == client.info.me._serialized) return message.reply("Jangan bot juga yang dijadikan crush")
+                    if (fs.existsSync(`${Menfess.dirpath}/${menArg}@c.us.json`)) Menfess.deleteUser(`${menArg}@c.us`)
+                    const resdata = await Menfess.updateUser({ userJid: sender, crushJid: contactJid._serialized, startChat: false })
+                    await client.sendMessage(resdata.crushJid, `${textMen}`)
+                    await message.reply("Sukses !\nBerhasil mengirim pesan menfess ke crushmu, tunngu sampai dia membalasnya di bot ini :)")
+                } else if (menArg == "start") {
+                    if (sender !== menCrush.crushJid) return message.reply("Anda belum pernah di _crush in_ siapapun!")
+                    const resdata = await Menfess.updateUser({ userJid: menUser.userJid, crushJid: menUser.crushJid, startChat: true })
+                    await message.reply("Anda telah membuka obrolan. Silahkan kalian mengobrol dengan hangat satu sama lain~")
+                    await client.sendMessage(resdata.userJid, "Crush anda telah membuka obrolan. Silahkan kalian mengobrol dengan hangat satu sama lain~")
+                } else if (menArg == "stop") {
+                    if (sender !== menCrush.crushJid) return message.reply("Anda belum pernah di _crush in_ siapapun!")
+                    const resdata = await Menfess.updateUser({ userJid: menUser.userJid, crushJid: false, startChat: false })
+                    await message.reply("Anda telah memutus obrolan, sekarang anda tidak bisa mengobrol lagi dengannya sampai dia mengirim pesan menfess lagi")
+                    await client.sendMessage(resdata.userJid, "Crush anda telah memutus obrolan, anda tidak memiliki crush di database sekarang")
+                } else if (menArg == "reset" && isOwner) {
+                    let dbs = fs.readdirSync(Menfess.dirpath)
+                    for (let x of dbs) {
+                        let db = Menfess.getUser(x.replace(".json", ""))
+                        await client.sendMessage(db.userJid, "Owner telah mereset database menfess kalian")
+                        db.crushJid ? await client.sendMessage(db.userJid, "Owner telah mereset database menfess kalian") : false
+                        Menfess.deleteUser(db.userJid)
+                        await message.reply("Sukses !")
+                    }
+                }
+            }
+            break
+            case "wattpadsearch":
+            case "wpsearch": {
+                logMsg(command, pushname)
+                if (args.length === 0) return message.reply("Masukkan judul novel")
+                let wps = await wp.Stories.search(q)
+                let text = `*Berikut Hasil Dari Pencarian Novel ${q}*\n`
+                let number = 1
+                for (let i = 0; i < wps.stories.length; i++) {
+                    text += `\n${number}. *${wps.stories[i].title.trim()}* (by _${wps.stories[i].user.name}_)\nDetails? ${prefix}wpdetails ${wps.stories[i].id}\n`
+                    number++
+                }
+                await message.reply(text)
+            }
+            break
+            case "wattpaddetails":
+            case "wpdetails": {
+                logMsg(command, pushname)
+                if (args.length === 0) return message.reply("Masukkan id novel")
+                let wpd = await wp.Stories.detail(args[0])
+                let caption = `*${wpd.title.trim()}*\n\nPenulis : ${monospace(wpd.user.name)}\nDibaca : ${monospace(wpd.readCount)}\nDikomen : ${monospace(wpd.commentCount)}\n\n"${wpd.description}"`
+                let media = await MessageMedia.fromUrl(wpd.cover, { unsafeMime: true })
+                let text = `Silahkan pilih chapter/bab yang ingin kamu baca\n`
+                let number = 1
+                for (let i = 0; i < wpd.parts.length; i++) {
+                    text += `\n${number}. ${wpd.parts[i].title}\n_Read?_ ${prefix}wpread ${wpd.parts[i].id}\n`
+                    number++
+                }
+                await message.reply(media, from, { media, caption })
+                await message.reply(text)
+            }
+            break
+            case "wattpadread":
+            case "wpread": {
+                logMsg(command, pushname)
+                if (args.length === 0) return message.reply("Masukkan id chapter novel")
+                let wpr = await wp.Stories.read(args[0])
+                await message.reply(wpr.text.trim())
             }
             break
 

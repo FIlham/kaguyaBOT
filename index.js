@@ -1,6 +1,6 @@
 const { Client, LocalAuth } = require("whatsapp-web.js")
 const qrterm = require("qrcode-terminal")
-const msgHndlr = require("./msgHndlr")
+const fs = require("fs")
 
 const client = new Client({
     authStrategy: new LocalAuth(),
@@ -54,5 +54,6 @@ client.on("ready", () => {
 
 client.on("message_create", (message) => {
     if (message.fromMe) return
-    msgHndlr(client, message)
+    // return
+    require("./msgHndlr")(client, message)
 })

@@ -5,13 +5,13 @@ const axios = require("axios").default
 const syntaxerror = require("syntax-error")
 const util = require("util")
 const fs = require("fs")
-const YouTube = require("./lib/YouTube")
-const { instagramdl, tiktokdl } = require("./lib/scraper")
+const { instagramdl, tiktokdl, ytDown, youtubedl } = require("./lib/scraper")
 const { menu, groupofc, infobot, owner } = require("./lib/text")
 const qc = require("./lib/qc")
 const yts = require("yt-search")
 const Menfess = require("./lib/Menfess")
 const WP = require("wattpad.js")
+const { youtubedlv2 } = require("@bochilteam/scraper")
 
 const wp = new WP()
 
@@ -68,25 +68,30 @@ module.exports = msgHndlr = async (client, message) => {
             // OWNER/UTILS
             case "help":
             case "menu": {
+                logMsg(command, pushname)
                 return message.reply(menu(pushname))
             }
             break
             case "speed": {
+                logMsg(command, pushname)
                 return message.reply(`_Speed_\n${processTime(timestamp, moment())} second`)
             }
             break
             case "groupofc":
             case "group": {
+                logMsg(command, pushname)
                 return message.reply(groupofc())
             }
             break
             case "infobot":
             case "info": {
+                logMsg(command, pushname)
                 return message.reply(infobot())
             }
             break
             case "owner":
             case "creator": {
+                logMsg(command, pushname)
                 return message.reply(owner())
             }
             break
@@ -164,12 +169,12 @@ module.exports = msgHndlr = async (client, message) => {
             case "ytmp3": {
                 logMsg(command, pushname)
                 if (args.length === 0) return message.reply("Masukkan link youtube")
-                YouTube.mp3(q)
+                youtubedl(q)
                 .then(async mp3data => {
-                    let caption = `*Judul*: ${mp3data.meta.title}\n*Durasi*: ${secondsConvert(mp3data.meta.seconds)}\n*Filesize:* ${humanFileSize(mp3data.size)}\n\nSilahkan Tunggu Beberapa Menit...`
-                    await message.reply((await MessageMedia.fromUrl(mp3data.meta.image, { unsafeMime: true, filename: "thumbnail" })), from, { caption })
-                    await message.reply(await MessageMedia.fromFilePath(mp3data.path), from, { sendMediaAsDocument: true })
-                    fs.unlinkSync(mp3data.path)
+                    if (Number(mp3data.mp3.size.split(" MB")[0]) >= 40.00) return message.reply("Karena filesize/ukuran file besar, bot tidak bisa mengunduh audio")
+                    let caption = `*Judul*: ${mp3data.title}\n*Filesize:* ${mp3data.mp3.size}\n\nSilahkan Tunggu Beberapa Menit...`
+                    await message.reply((await MessageMedia.fromUrl(mp3data.thumbnail, { unsafeMime: true, filename: "thumbnail" })), from, { caption })
+                    await message.reply(await MessageMedia.fromUrl(await mp3data.mp3.dlink, { unsafeMime: true, filename: mp3data.title +".mp3" }), from, { sendMediaAsDocument: true })
                 })
                 .catch(err => {
                     console.log(err)
@@ -181,13 +186,12 @@ module.exports = msgHndlr = async (client, message) => {
             case "yt": {
                 logMsg(command, pushname)
                 if (args.length === 0) return message.reply("Masukkan link youtube")
-                YouTube.mp4(q)
+                youtubedl(q)
                 .then(async mp4data => {
-                    let filesize = await getFilesize(await (await MessageMedia.fromUrl(mp4data.videoUrl, { unsafeMime: true })).data)
-                    if (Number(filesize.split(" MB")[0]) >= 40.00) return message.reply("Karena filesize/ukuran file besar, bot tidak bisa mengunduh video")
-                    let caption = `*Judul*: ${mp4data.title}\n*Durasi*: ${secondsConvert(mp4data.duration)}\n*Filesize:* ${filesize}\n\nSilahkan Tunggu Beberapa Menit...`
-                    await message.reply((await MessageMedia.fromUrl(mp4data.thumb.url, { unsafeMime: true, filename: "thumbnail" })), from, { caption })
-                    await message.reply(await MessageMedia.fromUrl(mp4data.videoUrl, { unsafeMime: true, filename: mp4data.title}), from, { sendMediaAsDocument: true })
+                    if (Number(mp4data.mp4.size.split(" MB")[0]) >= 40.00) return message.reply("Karena filesize/ukuran file besar, bot tidak bisa mengunduh audio")
+                    let caption = `*Judul*: ${mp4data.title}\n*Filesize:* ${mp4data.mp4.size}\n\nSilahkan Tunggu Beberapa Menit...`
+                    await message.reply((await MessageMedia.fromUrl(mp4data.thumbnail, { unsafeMime: true, filename: "thumbnail" })), from, { caption })
+                    await message.reply(await MessageMedia.fromUrl(await mp4data.mp4.dlink, { unsafeMime: true, filename: mp4data.title +".mp4" }), from, { sendMediaAsDocument: true })
                 })
                 .catch(err => {
                     console.log(err)
@@ -233,12 +237,12 @@ module.exports = msgHndlr = async (client, message) => {
                 logMsg(command, pushname)
                 if (args.length === 0) return message.reply("Masukkan kata kunci lagu")
                 let vids = await yts(q)
-                YouTube.mp3(vids.videos[0].url)
+                youtubedl(vids.videos[0].url)
                 .then(async mp3data => {
-                    let caption = `*Judul*: ${mp3data.meta.title}\n*Durasi*: ${secondsConvert(mp3data.meta.seconds)}\n*Filesize:* ${humanFileSize(mp3data.size)}\n\nSilahkan Tunggu Beberapa Menit...`
-                    await message.reply((await MessageMedia.fromUrl(mp3data.meta.image, { unsafeMime: true, filename: "thumbnail" })), from, { caption })
-                    await message.reply(await MessageMedia.fromFilePath(mp3data.path), from, { sendMediaAsDocument: true })
-                    fs.unlinkSync(mp3data.path)
+                    if (Number(mp3data.mp3.size.split(" MB")[0]) >= 40.00) return message.reply("Karena filesize/ukuran file besar, bot tidak bisa mengunduh audio")
+                    let caption = `*Judul*: ${mp3data.title}\n*Filesize:* ${mp3data.mp3.size}\n\nSilahkan Tunggu Beberapa Menit...`
+                    await message.reply((await MessageMedia.fromUrl(mp3data.thumbnail, { unsafeMime: true, filename: "thumbnail" })), from, { caption })
+                    await message.reply(await MessageMedia.fromUrl(await mp3data.mp3.dlink, { unsafeMime: true, filename: mp3data.title +".mp3" }), from, { sendMediaAsDocument: true })
                 })
                 .catch(err => {
                     console.log(err)

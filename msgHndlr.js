@@ -1,18 +1,16 @@
 const { MessageMedia } = require("whatsapp-web.js")
 const moment = require("moment-timezone")
-const { color, secondsConvert, humanFileSize, processTime } = require("./utils")
+const { color, humanFileSize, processTime } = require("./utils")
 const axios = require("axios").default
 const syntaxerror = require("syntax-error")
 const util = require("util")
 const fs = require("fs")
-const { instagramdl, tiktokdl, ytDown, youtubedl } = require("./lib/scraper")
+const { instagramdl, tiktokdl, youtubedl } = require("./lib/scraper")
 const { menu, groupofc, infobot, owner } = require("./lib/text")
 const qc = require("./lib/qc")
 const yts = require("yt-search")
 const Menfess = require("./lib/Menfess")
 const WP = require("wattpad.js")
-const { youtubedlv2 } = require("@bochilteam/scraper")
-
 const wp = new WP()
 
 moment.tz.setDefault("Asia/Jakarta").locale("id")

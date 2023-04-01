@@ -5,7 +5,7 @@ const axios = require("axios").default
 const syntaxerror = require("syntax-error")
 const util = require("util")
 const fs = require("fs")
-const { instagramdl, tiktokdl, youtubedl } = require("./lib/scraper")
+const { instagramdl, tiktokdl, youtubedl, facebookdl, mediafdl, pinterestdl } = require("./lib/scraper")
 const { menu, groupofc, infobot, owner } = require("./lib/text")
 const qc = require("./lib/qc")
 const yts = require("yt-search")
@@ -248,6 +248,43 @@ module.exports = msgHndlr = async (client, message) => {
                 })
             }
             break
+            case "mediafire":
+            case "mf": {
+                logMsg(command, pushname)
+                if (args.length === 0) return message.reply("Masukkan url mediafire")
+                mediafdl(q)
+                .then(async res => {
+                    let media = await MessageMedia.fromUrl(res.dlink, { unsafeMime: true, filename: res.title })
+                    let caption = `*Title*: ${res.title}\n*Filesize*: ${res.filesize}`
+                    if (Number(res.filesize.split(" MB")[0]) >= 70.00) return message.reply("Filesize tidak ngotak")
+                    return message.reply(media, from, { sendMediaAsDocument: true, caption })
+                })
+            }
+            break
+            case "facebook":
+            case "fb": {
+                logMsg(command, pushname)
+                if (args.length === 0) return message.reply("Masukkan url facebook")
+                facebookdl(q)
+                .then(async res => {
+                    let media = await MessageMedia.fromUrl(res.sourceHd || res.sourceSd, { unsafeMime: true })
+                    if (Number(getFilesize(media.data).split(" MB")[0]) >= 70.00) return message.reply("Filesize tidak ngotak")
+                    return message.reply(media, from, { sendMediaAsDocument: true, caption: `*Duration*: ${res.duration}` })
+                })
+            }
+            break
+            case "pinterest":
+            case "pin": {
+                logMsg(command, pushname)
+                if (args.length === 0) return message.reply("Masukkan url pinterest")
+                pinterestdl(q)
+                .then(async res => {
+                    let media = await MessageMedia.fromUrl(res.dlink, { unsafeMime: true })
+                    if (Number(getFilesize(media.data).split(" MB")[0]) >= 70.00) return message.reply("Filesize tidak ngotak")
+                    return message.reply(media, from, { sendMediaAsDocument: Number(getFilesize(media.data).split(" MB")[0]) >= 15.00 })
+                })
+            }
+            break
 
             // FUN
             case "menfess": {
@@ -255,11 +292,10 @@ module.exports = msgHndlr = async (client, message) => {
                 if (args.length === 0) return message.reply(`Menfess adalah fitur untuk mengirimkan pesan yang berisi pernyataan suka terhadap crush. Contoh penggunaan ada dibawah
 
 *${prefix}menfess* = Untuk mengirimkan pesan pernyataan suka kepada crush\nContoh : ${prefix}menfess target|nama_samaranmu|pesan\n${prefix}menfess 62xxxxxx|seseorang|hai aku suka kamu
-*${prefix}menfess start* = Untuk membuka obrolan. (Hanya bisa dilakukan oleh si crush)\nContoh : ${prefix}menfess start
-*${prefix}menfess stop* = Untuk menutup obrolan. (Hanya bisa dilakukan oleh si crush)\nContoh : ${prefix}menfess stop
+*${prefix}menfess start* = Untuk memulai obrolan. (Hanya bisa dilakukan oleh si crush)\nContoh : ${prefix}menfess start
+*${prefix}menfess stop* = Untuk mengakhiri obrolan. (Hanya bisa dilakukan oleh si crush)\nContoh : ${prefix}menfess stop
 *${prefix}menfess reset* = Untuk mereset database menfess (Hanya bisa dilakukan oleh owner)\nContoh : ${prefix}menfess reset
 
-Setiap jam 00:00 WIB data menfess akan direset dan jika kalian ingin mengobrol dengan crush, maka harus mengirim pesan menfess lagi.
 Data anda akan sepenuhnya aman dan tidak akan mengalami kebocoran`)
                 if (chat.isGroup) return message.reply("Khusus pesan pribadi (PC only !)")
                 let [menArg, hisName, text] = q.split("|")
@@ -276,13 +312,14 @@ Pengirim (nama samaran) : ${monospace(hisName)}
 Pesan :
 ${monospace(text)}
 
-*${prefix}menfess start* = Untuk membuka obrolan
-*${prefix}menfess stop* = Untuk menutup obrolan`
+*${prefix}menfess start* = Untuk memulai obrolan
+*${prefix}menfess stop* = Untuk mengakhiri obrolan`
                 if (menArg && isOnWa) {
                     if (menArg == sender.split("@")[0]) return message.reply("Jangan jadikan diri sendiri sebagai target crush!")
                     if (menUser.crushJid) return message.reply("Anda sudah punya crush, ngotak dong!")
                     if (menArg == client.info.me._serialized) return message.reply("Jangan bot juga yang dijadikan crush")
                     if (fs.existsSync(`${Menfess.dirpath}/${menArg}@c.us.json`)) Menfess.deleteUser(`${menArg}@c.us`)
+                    if (menCrush.userJid) return message.reply("Crush mu sedang di crushin orang lain:/")
                     const resdata = await Menfess.updateUser({ userJid: sender, crushJid: contactJid._serialized, startChat: false })
                     await client.sendMessage(resdata.crushJid, `${textMen}`)
                     await message.reply("Sukses !\nBerhasil mengirim pesan menfess ke crushmu, tunngu sampai dia membalasnya di bot ini :)")

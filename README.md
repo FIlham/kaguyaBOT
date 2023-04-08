@@ -15,5 +15,12 @@ node index.js
 ```
 Setelah proses instalasi selesai, silahkan pindai kode qr yang muncul di terminal/konsol
 
+Saat ini, script sudah tidak menggunakan file scraper lagi dikarenakan banyaknya keluhan. Maka kami mengganti file scraper tersebut dengan api kami
+        
+URL : [API Kaguya](https://proud-bear-baseball-cap.cyclic.app/)
+
 # Perhatian
 Saya tidak menjamin bahwa nomor anda akan bebas untuk diblokir dari WhatsApp, karena WhatsApp tidak mengizinkan program seperti bot dll yang tidak resmi di aplikasi mereka. Jadi tindakan ini tidak dapat dikatakan sangat aman
+
+
+[https://proud-bear-baseball-cap.cyclic.app/]: https://proud-bear-baseball-cap.cyclic.app/

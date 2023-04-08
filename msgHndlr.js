@@ -5,7 +5,6 @@ const axios = require("axios").default
 const syntaxerror = require("syntax-error")
 const util = require("util")
 const fs = require("fs")
-const { instagramdl, tiktokdl, youtubedl, facebookdl, mediafdl, pinterestdl } = require("./lib/scraper")
 const { menu, groupofc, infobot, owner } = require("./lib/text")
 const qc = require("./lib/qc")
 const yts = require("yt-search")
@@ -35,6 +34,7 @@ module.exports = msgHndlr = async (client, message) => {
         const isOwner = sender == "6285745351659@c.us" // change your whatsapp owner number
         const isBotAdmin = groupAdmins?.includes(client.info.me._serialized)
         const isAdmin = groupAdmins?.includes(sender)
+        const apiKaguya = "https://proud-bear-baseball-cap.cyclic.app"
 
         await client.sendPresenceAvailable()
         await client.sendSeen(from)
@@ -61,6 +61,7 @@ module.exports = msgHndlr = async (client, message) => {
         function monospace(text) {
             return "```" + text + "```"
         }
+
 
         switch (command) {
             // OWNER/UTILS
@@ -167,8 +168,9 @@ module.exports = msgHndlr = async (client, message) => {
             case "ytmp3": {
                 logMsg(command, pushname)
                 if (args.length === 0) return message.reply("Masukkan link youtube")
-                youtubedl(q)
-                .then(async mp3data => {
+                axios.get(`${apiKaguya}/api/youtubedl?url=${args[0]}`)
+                .then(async ({ data }) => {
+                    let mp3data = data.result
                     if (Number(mp3data.mp3.size.split(" MB")[0]) >= 40.00) return message.reply("Karena filesize/ukuran file besar, bot tidak bisa mengunduh audio")
                     let caption = `*Judul*: ${mp3data.title}\n*Filesize:* ${mp3data.mp3.size}\n\nSilahkan Tunggu Beberapa Menit...`
                     await message.reply((await MessageMedia.fromUrl(mp3data.thumbnail, { unsafeMime: true, filename: "thumbnail" })), from, { caption })
@@ -184,8 +186,9 @@ module.exports = msgHndlr = async (client, message) => {
             case "yt": {
                 logMsg(command, pushname)
                 if (args.length === 0) return message.reply("Masukkan link youtube")
-                youtubedl(q)
-                .then(async mp4data => {
+                axios.get(`${apiKaguya}/api/youtubedl?url=${args[0]}`)
+                .then(async ({ data }) => {
+                    let mp4data = data.result
                     if (Number(mp4data.mp4.size.split(" MB")[0]) >= 40.00) return message.reply("Karena filesize/ukuran file besar, bot tidak bisa mengunduh audio")
                     let caption = `*Judul*: ${mp4data.title}\n*Filesize:* ${mp4data.mp4.size}\n\nSilahkan Tunggu Beberapa Menit...`
                     await message.reply((await MessageMedia.fromUrl(mp4data.thumbnail, { unsafeMime: true, filename: "thumbnail" })), from, { caption })
@@ -201,11 +204,12 @@ module.exports = msgHndlr = async (client, message) => {
             case "ig": {
                 logMsg(command, pushname)
                 if (args.length === 0) return message.reply("Masukkan link instagram")
-                instagramdl(args[0])
-                .then(async igdata => {
+                axios.get(`${apiKaguya}/api/instagramdl?url=${args[0]}`)
+                .then(async ({ data }) => {
+                    let igdata = data.result
                     let caption = "*_Instagram Downloader by @kaguyaShinomiya_*"
-                    for (let i = 0; i < igdata.url_list.length; i++) {
-                        let media = await MessageMedia.fromUrl(igdata.url_list[i], { unsafeMime: true, filename: "igdl@kaguyaShinomiya" })
+                    for (let i = 0; i < igdata.dlink.length; i++) {
+                        let media = await MessageMedia.fromUrl(igdata.dlink[i], { unsafeMime: true, filename: "igdl@kaguyaShinomiya" })
                         await message.reply(media, from, { caption, sendMediaAsDocument: (Number((await getFilesize(media.data).split(" MB")[0])) >= 16.00) })
                     }
                 })
@@ -219,8 +223,9 @@ module.exports = msgHndlr = async (client, message) => {
             case "tt": {
                 logMsg(command, pushname)
                 if (args.length === 0) return message.reply("Masukkan link tiktok")
-                tiktokdl(args[0])
-                .then(async ttdata => {
+                axios.get(`${apiKaguya}/api/tiktokdl?url=${args[0]}`)
+                .then(async ({ data }) => {
+                    let ttdata = data.result
                     let caption = `*Author*: ${ttdata.nick}\n*Description*: ${ttdata.video_info.trim()}`
                     let media = await MessageMedia.fromUrl(ttdata.mp4, { unsafeMime: true, filename: ttdata.video_info.trim() })
                     await message.reply(media, from, { caption, sendMediaAsDocument: (Number((await getFilesize(media.data).split(" MB")[0])) >= 16.00) })
@@ -235,8 +240,9 @@ module.exports = msgHndlr = async (client, message) => {
                 logMsg(command, pushname)
                 if (args.length === 0) return message.reply("Masukkan kata kunci lagu")
                 let vids = await yts(q)
-                youtubedl(vids.videos[0].url)
-                .then(async mp3data => {
+                axios.get(`${apiKaguya}/api/youtubedl?url=${vids.videos[0].url}`)
+                .then(async ({ data }) => {
+                    let mp3data = data.result
                     if (Number(mp3data.mp3.size.split(" MB")[0]) >= 40.00) return message.reply("Karena filesize/ukuran file besar, bot tidak bisa mengunduh audio")
                     let caption = `*Judul*: ${mp3data.title}\n*Filesize:* ${mp3data.mp3.size}\n\nSilahkan Tunggu Beberapa Menit...`
                     await message.reply((await MessageMedia.fromUrl(mp3data.thumbnail, { unsafeMime: true, filename: "thumbnail" })), from, { caption })
@@ -248,28 +254,33 @@ module.exports = msgHndlr = async (client, message) => {
                 })
             }
             break
-            case "mediafire":
-            case "mf": {
-                logMsg(command, pushname)
-                if (args.length === 0) return message.reply("Masukkan url mediafire")
-                mediafdl(q)
-                .then(async res => {
-                    let media = await MessageMedia.fromUrl(res.dlink, { unsafeMime: true, filename: res.title })
-                    let caption = `*Title*: ${res.title}\n*Filesize*: ${res.filesize}`
-                    if (Number(res.filesize.split(" MB")[0]) >= 70.00) return message.reply("Filesize tidak ngotak")
-                    return message.reply(media, from, { sendMediaAsDocument: true, caption })
-                })
-            }
-            break
+            // case "mediafire":
+            // case "mf": {
+            //     logMsg(command, pushname)
+            //     if (args.length === 0) return message.reply("Masukkan url mediafire")
+            //     mediafdl(q)
+            //     .then(async res => {
+            //         let media = await MessageMedia.fromUrl(res.dlink, { unsafeMime: true, filename: res.title })
+            //         let caption = `*Title*: ${res.title}\n*Filesize*: ${res.filesize}`
+            //         if (Number(res.filesize.split(" MB")[0]) >= 70.00) return message.reply("Filesize tidak ngotak")
+            //         return message.reply(media, from, { sendMediaAsDocument: true, caption })
+            //     })
+            // }
+            // break
             case "facebook":
             case "fb": {
                 logMsg(command, pushname)
                 if (args.length === 0) return message.reply("Masukkan url facebook")
-                facebookdl(q)
-                .then(async res => {
-                    let media = await MessageMedia.fromUrl(res.sourceHd || res.sourceSd, { unsafeMime: true })
+                axios.get(`${apiKaguya}/api/facebookdl?url=${args[0]}`)
+                .then(async ({ data }) => {
+                    let res = data.result
+                    let media = await MessageMedia.fromUrl(res.hd.dlink || res.sd.dlink, { unsafeMime: true })
                     if (Number(getFilesize(media.data).split(" MB")[0]) >= 70.00) return message.reply("Filesize tidak ngotak")
                     return message.reply(media, from, { sendMediaAsDocument: true, caption: `*Duration*: ${res.duration}` })
+                })
+                .catch(err => {
+                    console.log(err)
+                    message.reply("Error Ditemukan! Silahkan Hubungi Admin")
                 })
             }
             break
@@ -277,11 +288,16 @@ module.exports = msgHndlr = async (client, message) => {
             case "pin": {
                 logMsg(command, pushname)
                 if (args.length === 0) return message.reply("Masukkan url pinterest")
-                pinterestdl(q)
-                .then(async res => {
+                axios.get(`${apiKaguya}/api/pinterestdl?url=${args[0]}`)
+                .then(async ({ data }) => {
+                    let res = data.result
                     let media = await MessageMedia.fromUrl(res.dlink, { unsafeMime: true })
                     if (Number(getFilesize(media.data).split(" MB")[0]) >= 70.00) return message.reply("Filesize tidak ngotak")
                     return message.reply(media, from, { sendMediaAsDocument: Number(getFilesize(media.data).split(" MB")[0]) >= 15.00 })
+                })
+                .catch(err => {
+                    console.log(err)
+                    message.reply("Error Ditemukan! Silahkan Hubungi Admin")
                 })
             }
             break
@@ -304,7 +320,8 @@ Data anda akan sepenuhnya aman dan tidak akan mengalami kebocoran`)
                 const contactJid = (menArg !== "start" && menArg !== "stop" && menArg !== "reset") ? await client.getNumberId(menArg) : false
                 const timeMsg = moment(timestamp*1000).format("DD/MM/YY HH:mm:ss")
                 const menCrush = await Menfess.checkCrush(sender)
-                const menUser = Menfess.getUser(menCrush.userJid)
+                const menUser = Menfess.getUser(sender)
+                const checkArg = Menfess.getUser(menArg + "@c.us")
                 const textMen = `_Hai, kamu dapat pesan confess nih_
 
 Waktu Dikirim : ${monospace(timeMsg)}
@@ -316,10 +333,10 @@ ${monospace(text)}
 *${prefix}menfess stop* = Untuk mengakhiri obrolan`
                 if (menArg && isOnWa) {
                     if (menArg == sender.split("@")[0]) return message.reply("Jangan jadikan diri sendiri sebagai target crush!")
-                    if (menUser.crushJid) return message.reply("Anda sudah punya crush, ngotak dong!")
+                    if (menUser?.crushJid !== menArg + "@c.us") return message.reply("Anda sudah punya crush, ngotak dong!")
                     if (menArg == client.info.me._serialized) return message.reply("Jangan bot juga yang dijadikan crush")
                     if (fs.existsSync(`${Menfess.dirpath}/${menArg}@c.us.json`)) Menfess.deleteUser(`${menArg}@c.us`)
-                    if (menCrush.userJid) return message.reply("Crush mu sedang di crushin orang lain:/")
+                    if (checkArg.userJid || checkArg.crushJid) return message.reply("Crush mu sedang di crushin orang lain:/")
                     const resdata = await Menfess.updateUser({ userJid: sender, crushJid: contactJid._serialized, startChat: false })
                     await client.sendMessage(resdata.crushJid, `${textMen}`)
                     await message.reply("Sukses !\nBerhasil mengirim pesan menfess ke crushmu, tunngu sampai dia membalasnya di bot ini :)")

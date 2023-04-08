@@ -1,6 +1,7 @@
 const { Client, LocalAuth } = require("whatsapp-web.js")
 const qrterm = require("qrcode-terminal")
 const fs = require("fs")
+const msgHndlr = require("./msgHndlr")
 
 const client = new Client({
     authStrategy: new LocalAuth(),
@@ -10,7 +11,7 @@ const client = new Client({
     bypassCSP: true,
     userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/111.0.0.0 Safari/537.36',
     puppeteer: {
-        headless: false,
+        headless: true,
         args: [
             '--no-sandbox',
             '--disable-web-security',
@@ -53,7 +54,8 @@ client.on("ready", () => {
 })
 
 client.on("message_create", (message) => {
-    if (message.fromMe) return
+    if (!message._data.isNewMsg) return
+    if (message.id.fromMe) return
     // return
-    require("./msgHndlr")(client, message)
+    msgHndlr(client, message)
 })

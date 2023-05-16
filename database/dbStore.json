@@ -1,0 +1,29 @@
+[
+    {
+        "id": 743230618,
+        "item": "Money $3,000",
+        "price": {
+            "fish": 2,
+            "raw_meat": 5,
+            "wood": 5
+        }
+    },
+    {
+        "id": 465480112,
+        "item": "Money $5,000",
+        "price": {
+            "fish": 3,
+            "raw_meat": 8,
+            "wood": 5
+        }
+    },
+    {
+        "id": 132550954,
+        "item": "Money: $10,000",
+        "price": {
+            "fish": 3,
+            "raw_meat": 8,
+            "wood": 8
+        }
+    }
+]

@@ -11,8 +11,10 @@ const yts = require("yt-search")
 const Menfess = require("./lib/Menfess")
 const WP = require("wattpad.js")
 const wp = new WP()
-const { owners, stickerAuthor, stickerName } = require("./config.json")
+let cooldown = new Map()
+const { owners, stickerAuthor, stickerName, banchat } = require("./config.json")
 const { Game, rewards } = require("./lib/Game")
+const { mp3, mp4 } = require("./lib/YouTube")
 
 moment.tz.setDefault("Asia/Jakarta").locale("id")
 module.exports = msgHndlr = async (client, message) => {
@@ -38,6 +40,9 @@ module.exports = msgHndlr = async (client, message) => {
         const isBotAdmin = groupAdmins?.includes(client.info.me._serialized)
         const isAdmin = groupAdmins?.includes(sender)
         const apiKaguya = "https://proud-bear-baseball-cap.cyclic.app"
+
+        // BanChat System 
+        if (banchat && !isOwner) return
 
         // Game Variable
         const game = new Game(sender)
@@ -79,6 +84,19 @@ module.exports = msgHndlr = async (client, message) => {
             return "```" + text + "```"
         }
 
+        // Anti-SPAM
+        if (!cooldown.has(from)) { cooldown.set(from, new Map()) }
+        let now = Date.now()
+        let time = cooldown.get(from)
+        let cdAmount = [2000, 3000][Math.floor(Math.random() * 2)]
+        if (time.has(from)) {
+            let expiration = time.get(from) + cdAmount
+            if ((now < expiration) && isCmd) {
+                return await message.reply(`Anda Terdeteksi Spam, Silahkan Kirim Ulang Perintah Dalam *${((expiration - now) / 1000).toFixed(1)} detik*`)
+            }
+        }
+        time.set(from, now)
+        setTimeout(() => time.delete(from), cdAmount)
 
         switch (command) {
             // OWNER/UTILS
@@ -185,17 +203,14 @@ module.exports = msgHndlr = async (client, message) => {
             case "ytmp3": {
                 logMsg(command, pushname)
                 if (args.length === 0) return message.reply("Masukkan link youtube")
-                axios.get(`${apiKaguya}/api/youtubedl?url=${args[0]}`)
-                .then(async ({ data }) => {
-                    let mp3data = data.result
-                    if (Number(mp3data.mp3.size.split(" MB")[0]) >= 40.00) return message.reply("Karena filesize/ukuran file besar, bot tidak bisa mengunduh audio")
-                    let caption = `*Judul*: ${mp3data.title}\n*Filesize:* ${mp3data.mp3.size}\n\nSilahkan Tunggu Beberapa Menit...`
-                    await message.reply((await MessageMedia.fromUrl(mp3data.thumbnail, { unsafeMime: true, filename: "thumbnail" })), from, { caption })
-                    await message.reply(await MessageMedia.fromUrl(await mp3data.mp3.dlink, { unsafeMime: true, filename: mp3data.title +".mp3" }), from, { sendMediaAsDocument: true })
-                })
-                .catch(err => {
-                    console.log(err)
-                    message.reply("Error Ditemukan! Silahkan Hubungi Admin")
+                mp3(args[0])
+                .then(async mp3data => {
+                    const media = await MessageMedia.fromFilePath(mp3data.path)
+                    const size = getFilesize(media.data)
+                    if (Number(size.split(" MB")[0]) >= 40.00) return message.reply("Ukuran Media Terlalu Besar")
+                    let caption = `*Title:* ${mp3data.meta.title}\n*Filesize:* ${size}\n\nSilahkan Tunggu Sebentar`
+                    await message.reply(await MessageMedia.fromUrl(mp3data.meta.image, { unsafeMime: true }), from, { caption }),
+                    await message.reply(media, from, { sendMediaAsDocument: true })
                 })
             }
             break
@@ -203,17 +218,14 @@ module.exports = msgHndlr = async (client, message) => {
             case "yt": {
                 logMsg(command, pushname)
                 if (args.length === 0) return message.reply("Masukkan link youtube")
-                axios.get(`${apiKaguya}/api/youtubedl?url=${args[0]}`)
-                .then(async ({ data }) => {
-                    let mp4data = data.result
-                    if (Number(mp4data.mp4.size.split(" MB")[0]) >= 40.00) return message.reply("Karena filesize/ukuran file besar, bot tidak bisa mengunduh audio")
-                    let caption = `*Judul*: ${mp4data.title}\n*Filesize:* ${mp4data.mp4.size}\n\nSilahkan Tunggu Beberapa Menit...`
-                    await message.reply((await MessageMedia.fromUrl(mp4data.thumbnail, { unsafeMime: true, filename: "thumbnail" })), from, { caption })
-                    await message.reply(await MessageMedia.fromUrl(await mp4data.mp4.dlink, { unsafeMime: true, filename: mp4data.title +".mp4" }), from, { sendMediaAsDocument: true })
-                })
-                .catch(err => {
-                    console.log(err)
-                    message.reply("Error Ditemukan! Silahkan Hubungi Admin")
+                mp4(args[0])
+                .then(async mp4data => {
+                    const media = await MessageMedia.fromUrl(mp4data.videoUrl, { unsafeMime: true, filename: mp4data.title })
+                    const size = getFilesize(media.data)
+                    if (Number(size.split(" MB")[0]) >= 40.00) return message.reply("Ukuran Media Terlalu Besar")
+                    let caption = `*Title:* ${mp4data.title}\n*Size:* ${size}\n\nSilahkan Tunggu Sebentar`
+                    await message.reply(await MessageMedia.fromUrl(mp4data.thumb.url, { unsafeMime: true }), from, { caption })
+                    await message.reply(media, from, { sendMediaAsDocument: size >= 16.00 })
                 })
             }
             break
@@ -243,8 +255,8 @@ module.exports = msgHndlr = async (client, message) => {
                 axios.get(`${apiKaguya}/api/tiktokdl?url=${args[0]}`)
                 .then(async ({ data }) => {
                     let ttdata = data.result
-                    let caption = `*Author*: ${ttdata.nick}\n*Description*: ${ttdata.video_info.trim()}`
-                    let media = await MessageMedia.fromUrl(ttdata.mp4, { unsafeMime: true, filename: ttdata.video_info.trim() })
+                    let caption = `*Author*: ${ttdata.username} (${ttdata.nickname})\n*Description*: ${ttdata.description?.trim()}`
+                    let media = await MessageMedia.fromUrl((ttdata.url_download.server1 || ttdata.url_download.server2 || ttdata.url_download.server3), { unsafeMime: true, filename: ttdata.description?.trim() })
                     await message.reply(media, from, { caption, sendMediaAsDocument: (Number((await getFilesize(media.data).split(" MB")[0])) >= 16.00) })
                 })
                 .catch(err => {

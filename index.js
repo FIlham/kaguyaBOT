@@ -1,6 +1,7 @@
 const { Client, LocalAuth } = require("whatsapp-web.js")
 const qrterm = require("qrcode-terminal")
 const fs = require("fs")
+const cron = require("node-cron")
 const msgHndlr = require("./msgHndlr")
 
 const client = new Client({
@@ -59,3 +60,13 @@ client.on("message_create", (message) => {
     // return
     msgHndlr(client, message)
 })
+
+cron.schedule("* * * * *", () => {
+    const medias = fs.readdirSync("./temp/")
+    medias.forEach(media => {
+        fs.unlinkSync(`./temp/${media}`)
+    })
+}, {
+    scheduled: true,
+    timezone: "Asia/Jakarta"
+}).start()
